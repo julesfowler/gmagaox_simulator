@@ -10,8 +10,23 @@ def generate_dm_shm():
     shm_dm = SHM('dm', np.zeros((128, 128), dtype=np.float32))
     return shm_dm
 
-def calculate_dm_cmd(wfs_read, gain=0.5, lag=0.2):
-    time.sleep(lag)
+def enforce_strict_timelag(timelag):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            time_start = time.time()
+            out = func(*args, **kwargs)
+            while time_start + timelag > time.time():
+                #print(time_start + timelag, time.time())
+                time.sleep(timelag/100)
+            return out
+        return wrapper
+    return decorator
+
+@enforce_strict_timelag(0.2)
+# this timelag is in units of physical seconds
+# but ideally it should be tied to the hcipy benchmark
+# or something smarter/more adaptive idk
+def calculate_dm_cmd(wfs_read, gain=0.5):
     return np.array(wfs_read*gain, dtype=np.float32)
 
 if __name__=="__main__":
@@ -36,7 +51,4 @@ if __name__=="__main__":
         shm_dm.set_data(dm_cmd)
         i += 1
 
-# Finally this would run through terminal to spin up the veiwers 
-# $ shmImshow.py turbulence --fr=20
-# $ shmImshow.py wfs --fr=20 
 
